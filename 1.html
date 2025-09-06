@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Micro Learning — Single File App</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#06b6d4;--glass: rgba(255,255,255,0.04)}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071028, #071826);color:#e6eef6}
+    .app{display:grid;grid-template-columns:300px 1fr;gap:20px;padding:24px;max-width:1100px;margin:24px auto}
+    .sidebar{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    .logo{font-weight:700;font-size:18px;margin-bottom:8px}
+    .lesson-list{margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:68vh;overflow:auto;padding-right:6px}
+    .lesson-item{padding:10px;border-radius:8px;cursor:pointer;background:transparent;border:1px solid transparent}
+    .lesson-item.active{background:linear-gradient(90deg, rgba(6,182,212,0.08), rgba(6,182,212,0.02));border-color:rgba(6,182,212,0.12)}
+    .meta{font-size:12px;color:var(--muted)}
+
+    .main{background:var(--card);border-radius:12px;padding:20px;box-shadow:0 10px 30px rgba(2,6,23,0.6);min-height:70vh}
+    .title-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .lesson-title{font-size:20px;font-weight:700}
+    .controls{display:flex;gap:8px;align-items:center}
+    button{background:var(--glass);border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;color:inherit;cursor:pointer}
+    button.primary{background:linear-gradient(90deg,#06b6d4,#3b82f6);color:#02111a;border:none}
+    .content{margin-top:16px;line-height:1.6}
+    .footer-actions{display:flex;gap:8px;margin-top:20px}
+    .progress-bar{height:10px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden}
+    .progress{height:100%;background:linear-gradient(90deg,#06b6d4,#3b82f6);width:0%}
+
+    /* small components */
+    .chips{display:flex;gap:8px}
+    .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:13px}
+
+    .toolbar{display:flex;gap:8px;align-items:center}
+    .timer{font-weight:600}
+
+    /* flashcards */
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:18px;border-radius:10px;min-height:120px;display:flex;align-items:center;justify-content:center;text-align:center}
+
+    /* quiz */
+    .options{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+    .option{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);cursor:pointer}
+    .option.correct{border-color:rgba(34,197,94,0.6);background:rgba(34,197,94,0.06)}
+    .option.wrong{border-color:rgba(239,68,68,0.6);background:rgba(239,68,68,0.04)}
+
+    /* responsive */
+    @media (max-width:900px){.app{grid-template-columns:1fr;padding:12px}.sidebar{order:2}.main{order:1}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">MicroLearn • quick lessons</div>
+      <div class="meta">Built for 5–10 minute focused study sessions</div>
+      <div style="height:10px"></div>
+
+      <div class="chips">
+        <div class="chip" id="totalLessons">Lessons: 0</div>
+        <div class="chip" id="completedLessons">Completed: 0</div>
+      </div>
+
+      <div class="lesson-list" id="lessonList" role="list"></div>
+
+      <div style="margin-top:16px;font-size:13px;color:var(--muted)">Tips: Tap a lesson, use the timer, and take the 1-question quiz.</div>
+    </aside>
+
+    <main class="main">
+      <div class="title-row">
+        <div>
+          <div class="lesson-title" id="lessonTitle">Welcome</div>
+          <div class="meta" id="lessonMeta">Select a lesson to begin</div>
+        </div>
+        <div class="controls">
+          <div class="toolbar">
+            <div class="timer" id="timer">00:00</div>
+            <button id="startTimer">Start 5m</button>
+            <button id="flashcardBtn">Flashcard</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="content" id="lessonContent">
+        <div class="card">Pick a lesson from the left to begin a micro-learning session.</div>
+      </div>
+
+      <div class="footer-actions">
+        <div style="flex:1">
+          <div class="progress-bar" aria-hidden><div class="progress" id="progressBar"></div></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="prevBtn">Prev</button>
+          <button id="nextBtn" class="primary">Next</button>
+          <button id="quizBtn">1-Q Quiz</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- quiz modal (simple) -->
+  <div id="modal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:40">
+    <div style="width:420px;background:var(--card);padding:18px;border-radius:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong id="modalTitle">Quiz</strong>
+        <button id="closeModal">Close</button>
+      </div>
+      <div id="modalBody" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <script>
+    // ====== Sample lessons ======
+    const LESSONS = [
+      { id: 'l1', title: 'Pomodoro Basics', timeMin: 5, content: '<p>Use 25-minute focused blocks followed by short breaks. Micro-learning uses shorter blocks — try 5–10 minutes focused on 1 concept.</p>', quiz: {q:'Best immediate goal for a 5-minute session?', options:['Skim an article','Deep research','Memorize 20 facts','Take a test'], answer:0}, flash: {front:'What is Pomodoro?', back:'A time-management method using focused intervals (traditionally 25 minutes).'} },
+      { id: 'l2', title: 'Active Recall', timeMin: 5, content: '<p>Active recall means testing yourself to strengthen memory — flashcards and quick quizzes work well.</p>', quiz: {q:'Which helps retention most?', options:['Rereading','Active recall','Highlighting','Listening only'], answer:1}, flash:{front:'Active recall?', back:'Practicing retrieval (testing) rather than passively reviewing.'} },
+      { id: 'l3', title: 'Spaced Repetition', timeMin: 3, content: '<p>Spacing study sessions increases retention. Revisit topics after increasing intervals.</p>', quiz:{q:'What spacing helps long-term memory?', options:['Cramming','Spaced repetition','Single review','None'], answer:1}, flash:{front:'Spaced repetition?', back:'Scheduling revisits at expanding intervals to strengthen memory.'} }
+    ];
+
+    // ====== App state ======
+    let state = {index:0, lessons: LESSONS.map(l => ({...l, completed:false})) };
+
+    // load progress from localStorage
+    function loadState(){
+      const saved = localStorage.getItem('microlearn_state');
+      if(saved){
+        try{ const parsed = JSON.parse(saved); if(parsed.lessons) state = parsed; }catch(e){}
+      }
+    }
+    function saveState(){ localStorage.setItem('microlearn_state', JSON.stringify(state)); }
+
+    // ====== Render UI ======
+    const lessonListEl = document.getElementById('lessonList');
+    const lessonTitleEl = document.getElementById('lessonTitle');
+    const lessonMetaEl = document.getElementById('lessonMeta');
+    const lessonContentEl = document.getElementById('lessonContent');
+    const progressBar = document.getElementById('progressBar');
+    const totalLessonsEl = document.getElementById('totalLessons');
+    const completedLessonsEl = document.getElementById('completedLessons');
+
+    function renderList(){
+      lessonListEl.innerHTML='';
+      state.lessons.forEach((l,i)=>{
+        const el = document.createElement('div');
+        el.className='lesson-item' + (i===state.index? ' active' : '');
+        el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(l.title)}</strong><div class='meta'>${l.timeMin} min</div></div><div style='font-size:12px;color:${l.completed?"#60a5fa":"var(--muted)"}'>${l.completed? '✓' : ''}</div></div>`;
+        el.onclick = ()=>{ state.index = i; saveState(); render(); };
+        lessonListEl.appendChild(el);
+      });
+      totalLessonsEl.textContent = 'Lessons: ' + state.lessons.length;
+      completedLessonsEl.textContent = 'Completed: ' + state.lessons.filter(l=>l.completed).length;
+    }
+
+    function render(){
+      renderList();
+      const cur = state.lessons[state.index];
+      lessonTitleEl.textContent = cur.title;
+      lessonMetaEl.textContent = `${cur.timeMin} min • Quick idea`;
+      lessonContentEl.innerHTML = cur.content;
+      const pct = Math.round((state.lessons.filter(l=>l.completed).length / state.lessons.length) * 100);
+      progressBar.style.width = pct + '%';
+      saveState();
+    }
+
+    // ====== Controls ======
+    document.getElementById('nextBtn').addEventListener('click', ()=>{ state.lessons[state.index].completed = true; state.index = Math.min(state.index+1, state.lessons.length-1); render(); });
+    document.getElementById('prevBtn').addEventListener('click', ()=>{ state.index = Math.max(state.index-1, 0); render(); });
+
+    // ====== Timer ======
+    let timerInterval = null; let remaining = 0;
+    const timerEl = document.getElementById('timer');
+    document.getElementById('startTimer').addEventListener('click', ()=>{
+      const cur = state.lessons[state.index];
+      startTimer(cur.timeMin * 60);
+    });
+    function startTimer(seconds){
+      if(timerInterval) clearInterval(timerInterval);
+      remaining = seconds; updateTimerDisplay();
+      timerInterval = setInterval(()=>{ remaining--; updateTimerDisplay(); if(remaining<=0){ clearInterval(timerInterval); timerInterval=null; alert('Time up! Take the quick quiz.'); showQuiz(); } },1000);
+    }
+    function updateTimerDisplay(){ const m = Math.floor(remaining/60).toString().padStart(2,'0'); const s = (remaining%60).toString().padStart(2,'0'); timerEl.textContent = `${m}:${s}`; }
+
+    // ====== Flashcards ======
+    document.getElementById('flashcardBtn').addEventListener('click', showFlashcard);
+    function showFlashcard(){ const cur = state.lessons[state.index];
+      const modal = document.getElementById('modal');
+      document.getElementById('modalTitle').textContent = 'Flashcard';
+      const body = document.getElementById('modalBody');
+      body.innerHTML = `<div class='card' id='flashCard'> <div><strong>${escapeHtml(cur.flash.front)}</strong><div style='margin-top:8px;font-size:13px;color:var(--muted)'>Tap to flip</div></div></div>`;
+      modal.style.display='flex';
+      const fc = document.getElementById('flashCard');
+      fc.onclick = ()=>{ body.innerHTML = `<div class='card'><div><strong>${escapeHtml(cur.flash.back)}</strong></div></div>`; };
+    }
+
+    // ====== Quiz (1 question) ======
+    document.getElementById('quizBtn').addEventListener('click', showQuiz);
+    function showQuiz(){ const cur = state.lessons[state.index]; const modal = document.getElementById('modal'); document.getElementById('modalTitle').textContent = 'Quick Quiz'; const body = document.getElementById('modalBody');
+      const q = cur.quiz;
+      body.innerHTML = `<div><div style='font-weight:700'>${escapeHtml(q.q)}</div><div class='options' id='options'></div></div>`;
+      const optEl = document.getElementById('options');
+      q.options.forEach((o,idx)=>{
+        const odiv = document.createElement('div'); odiv.className='option'; odiv.textContent = o; odiv.onclick = ()=>{ if(idx===q.answer) { odiv.classList.add('correct'); state.lessons[state.index].completed=true; } else { odiv.classList.add('wrong'); const correct = optEl.children[q.answer]; correct.classList.add('correct'); }
+          setTimeout(()=>{ modal.style.display='none'; render(); },900);
+        };
+        optEl.appendChild(odiv);
+      });
+      modal.style.display='flex';
+    }
+
+    document.getElementById('closeModal').addEventListener('click', ()=>{ document.getElementById('modal').style.display='none'; });
+
+    // ====== Utilities ======
+    function escapeHtml(str){ return str.replace(/[&<>"']/g, (c)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // init
+    loadState(); render();
+
+    // keyboard shortcuts: n / p / q
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='n') document.getElementById('nextBtn').click();
+      if(e.key==='p') document.getElementById('prevBtn').click();
+      if(e.key==='q') document.getElementById('quizBtn').click();
+    });
+
+    // small helper: if no state in storage, initialize from LESSONS
+    if(!localStorage.getItem('microlearn_state')){ state = {index:0, lessons: LESSONS.map(l=>({...l, completed:false})) }; saveState(); }
+  </script>
+</body>
+</html>
